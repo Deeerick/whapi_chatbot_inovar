@@ -11,7 +11,11 @@ app = Flask(__name__)
 # Define responses for specific commands
 RESPONSES = {
     '!help': 'Olá, bem vindo ao atendimento Inovar!',
-    'command': 'text2',
+    '!options': 'Escolha uma das opções abaixo:\n\n 1 - Option 1\n 2 - Option 2\n 3 - Option 3',
+    '!contact': 'Entre em contato conosco pelo telefone (19) 9 9999-9999 ou pelo e-mail contato@inovar.com.br',
+    '1': 'Você escolheu a opção 1.',
+    '2': 'Você escolheu a opção 2.',
+    '3': 'Você escolheu a opção 3.',
 }
 
 IMAGE_PATH = './files/helicopter.jfif'
@@ -52,7 +56,8 @@ def send_whapi_request(endpoint, payload):
     return response.json()
 
 
-# The Webhook link to your server is set in the dashboard. For this script it is important that the link is in the format: {link to server}/hook.
+# The Webhook link to your server is set in the dashboard.
+# For this script it is important that the link is in the format: {link to server}/hook.
 @app.route('/hook', methods=['POST'])
 def handle_new_messages():
     try:
@@ -72,14 +77,19 @@ def handle_new_messages():
                 command_text = message.get('text', {}).get('body', '').strip().lower()
                 
                 # Determine the response based on the command
-                if command_text == 'help':
-                    payload['body'] = RESPONSES['help']
+                if command_text == '!help':
+                    payload['body'] = RESPONSES['!help']
                     endpoint = 'messages/text'
-                elif command_text == 'command':
-                    payload['body'] = RESPONSES['command']
+                elif command_text == '!options':
+                    payload['body'] = RESPONSES['!options']
+                    endpoint = 'messages/text'
+                elif command_text == '!contact':
+                    payload['body'] = RESPONSES['!contact']
+                    endpoint = 'messages/text'
+                elif command_text in RESPONSES:
+                    payload['body'] = RESPONSES[command_text]
                     endpoint = 'messages/text'
                 else:
-                    # Default response for unknown commands
                     payload['body'] = "Unknown command."
                     endpoint = 'messages/text'
 
@@ -96,6 +106,7 @@ def handle_new_messages():
     except Exception as e:
         print(f"Error: {e}")
         return str(e), 500
+
 
 @app.route('/', methods=['GET'])
 def index():
