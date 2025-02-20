@@ -90,7 +90,7 @@ def handle_new_messages():
                     payload['body'] = RESPONSES[command_text]
                     endpoint = 'messages/text'
                 else:
-                    payload['body'] = "Unknown command."
+                    payload['body'] = "Desculpe, não entendi o comando.\n Digite !options para ver os comandos disponíveis."
                     endpoint = 'messages/text'
 
             elif command_type == 'image':
