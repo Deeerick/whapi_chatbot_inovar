@@ -48,11 +48,11 @@ def send_whapi_request(endpoint, payload):
         response = requests.post(url, json=payload, headers=headers)
 
     # Log the request and response for debugging
-    # print(f"Request URL: {url}")
-    # print(f"Request Headers: {headers}")
-    # print(f"Request Payload: {payload}")
-    # print(f"Response Status Code: {response.status_code}")
-    # print(f"Response Content: {response.content}")
+    print(f"Request URL: {url}")
+    print(f"Request Headers: {headers}")
+    print(f"Request Payload: {payload}")
+    print(f"Response Status Code: {response.status_code}")
+    print(f"Response Content: {response.content}")
 
     return response.json()
 
@@ -69,8 +69,13 @@ def handle_new_messages():
             if message.get('from_me'):
                 continue
 
+            # Ignore messages from groups and broadcast lists
+            chat_id = message.get('chat_id')
+            if '@g.us' in chat_id or '@broadcast' in chat_id:
+                continue
+
             command_type = message.get('type', {}).strip().lower()
-            sender_id = message.get('chat_id')
+            sender_id = chat_id
             payload = {'to': sender_id}
 
             if command_type == 'text':
@@ -87,7 +92,8 @@ def handle_new_messages():
 
             elif command_type == 'image':
                 payload['caption'] = IMAGE_CAPTION
-                payload['media'] = IMAGE_PATH + ';image/' + IMAGE_PATH.split('.')[-1]
+                payload['media'] = IMAGE_PATH + \
+                    ';image/' + IMAGE_PATH.split('.')[-1]
                 endpoint = 'messages/image'
 
             # Send the response
