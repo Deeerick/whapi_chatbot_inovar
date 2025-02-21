@@ -1,8 +1,10 @@
-from flask import Flask, request, jsonify
-import requests
 import os
+import requests
+
 from dotenv import load_dotenv
+from flask import Flask, request, jsonify
 from requests_toolbelt.multipart.encoder import MultipartEncoder
+
 
 load_dotenv()
 
@@ -10,11 +12,14 @@ app = Flask(__name__)
 
 # Define responses for specific commands
 RESPONSES = {
-    'default': 'Bem vindo ao atendimento da Inovar! \n\nPara seguirmos com seu atendimento, escolha uma das opções abaixo: \n\n1 - Opção 1 \n2 - Opção 2 \n3 - Opção 3',
-    '1': 'Você escolheu a opção 1.',
-    '2': 'Você escolheu a opção 2.',
-    '3': 'Você escolheu a opção 3.',
+    'default': 'Bem vindo ao atendimento da Inovar! \n\nPara seguirmos com seu atendimento, por favor, informe seu nome:'
 }
+
+# Lista de condomínios válidos
+VALID_CONDOMINIOS = ['Condominio A', 'Condominio B', 'Condominio C']
+
+# Dicionário para armazenar o estado da conversa com cada usuário
+user_states = {}
 
 IMAGE_PATH = './files/helicopter.jfif'
 IMAGE_CAPTION = 'Caption.'
@@ -47,14 +52,38 @@ def send_whapi_request(endpoint, payload):
         headers['Content-Type'] = 'application/json'
         response = requests.post(url, json=payload, headers=headers)
 
-    # Log the request and response for debugging
-    print(f"Request URL: {url}")
-    print(f"Request Headers: {headers}")
-    print(f"Request Payload: {payload}")
-    print(f"Response Status Code: {response.status_code}")
-    print(f"Response Content: {response.content}")
-
     return response.json()
+
+
+def handle_user_response(sender_id, message_text):
+    """Handle the user's response based on the current state."""
+
+    if sender_id not in user_states:
+        user_states[sender_id] = {'state': 'ask_name'}
+        return RESPONSES['default']
+
+    state = user_states[sender_id]['state']
+
+    if state == 'ask_name':
+        user_states[sender_id]['name'] = message_text
+        user_states[sender_id]['state'] = 'ask_condominio'
+        return 'Por favor, informe o condomínio onde você mora:'
+
+    elif state == 'ask_condominio':
+        if message_text in VALID_CONDOMINIOS:
+            user_states[sender_id]['condominio'] = message_text
+            user_states[sender_id]['state'] = 'triage_complete'
+
+            # Chame o arquivo Python correspondente ao condomínio
+            condominio_script = f"{message_text.replace(' ', '_').lower()}.py"
+            
+            # Aqui você pode importar e chamar a função principal do script do condomínio
+            # Por exemplo: import condominio_a; condominio_a.main()
+            return f"Condomínio válido. Chamando o script {condominio_script}..."
+        else:
+            return 'Condomínio inválido. Por favor, informe um condomínio válido:'
+
+    return 'Desculpe, não entendi sua resposta.'
 
 
 # The Webhook link to your server is set in the dashboard.
@@ -83,11 +112,9 @@ def handle_new_messages():
                 command_text = message.get('text', {}).get(
                     'body', '').strip().lower()
 
-                # Determine the response based on the command
-                if command_text in RESPONSES:
-                    payload['body'] = RESPONSES[command_text]
-                else:
-                    payload['body'] = RESPONSES['default']
+                # Handle the user's response based on the current state
+                response_text = handle_user_response(sender_id, command_text)
+                payload['body'] = response_text
                 endpoint = 'messages/text'
 
             elif command_type == 'image':
