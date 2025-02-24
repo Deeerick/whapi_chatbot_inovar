@@ -4,7 +4,8 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 from requests_toolbelt.multipart.encoder import MultipartEncoder
-
+from datetime import datetime
+from pytz import timezone
 
 load_dotenv()
 
@@ -14,7 +15,7 @@ app = Flask(__name__)
 RESPONSES = {'default': 'Bem vindo ao atendimento da Inovar! \n\nPara seguirmos com seu atendimento, por favor, informe seu nome:'}
 
 # Lista de condomínios válidos
-VALID_CONDOMINIOS = ['Vitalis', 'Spazio Castellon', 'Parque da Mata II', 
+VALID_CONDOMINIOS = ['Vitalis', 'Spazio Castellon', 'Parque da Mata II',
                      'Atlanta', 'Portal dos Cristais', 'Portal das Safiras'
                      'Inspirazzione', 'Roma Residencial Clube', 'São Gabriel'
                      ]
@@ -77,7 +78,7 @@ def handle_user_response(sender_id, message_text):
 
             # Chame o arquivo Python correspondente ao condomínio
             condominio_script = f"{message_text.replace(' ', '_').lower()}.py"
-            
+
             # Aqui você pode importar e chamar a função principal do script do condomínio
             # Por exemplo: import condominio_a; condominio_a.main()
             return f"Condomínio válido. Chamando o script {condominio_script}..."
@@ -92,6 +93,12 @@ def handle_user_response(sender_id, message_text):
 @app.route('/webhook', methods=['POST'])
 def handle_new_messages():
     try:
+        # Verificar o horário atual em Brasília
+        brasilia_tz = timezone('America/Sao_Paulo')
+        now = datetime.now(brasilia_tz)
+        if now.hour < 8 or now.hour >= 17:
+            return jsonify({'message': 'O atendimento está disponível apenas das 08h às 17h de Brasília.'}), 200
+
         messages = request.json.get('messages', [])
 
         for message in messages:
