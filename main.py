@@ -16,7 +16,10 @@ RESPONSES = {
 }
 
 # Lista de condomínios válidos
-VALID_CONDOMINIOS = ['Condominio A', 'Condominio B', 'Condominio C']
+VALID_CONDOMINIOS = ['Vitalis', 'Spazio Castellon', 'Parque da Mata II', 
+                     'Atlanta', 'Portal dos Cristais', 'Portal das Safiras'
+                     'Inspirazzione', 'Roma Residencial Clube', 'São Gabriel'
+                     ]
 
 # Dicionário para armazenar o estado da conversa com cada usuário
 user_states = {}
