@@ -11,9 +11,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # Define responses for specific commands
-RESPONSES = {
-    'default': 'Bem vindo ao atendimento da Inovar! \n\nPara seguirmos com seu atendimento, por favor, informe seu nome:'
-}
+RESPONSES = {'default': 'Bem vindo ao atendimento da Inovar! \n\nPara seguirmos com seu atendimento, por favor, informe seu nome:'}
 
 # Lista de condomínios válidos
 VALID_CONDOMINIOS = ['Vitalis', 'Spazio Castellon', 'Parque da Mata II', 
@@ -29,7 +27,7 @@ IMAGE_CAPTION = 'Caption.'
 
 
 def send_whapi_request(endpoint, payload):
-    """Send a request to the WhatsApp API."""
+    """Enviar uma solicitação para a API do WhatsApp."""
 
     headers = {
         'Authorization': f"Bearer {os.getenv('TOKEN')}"
@@ -37,7 +35,7 @@ def send_whapi_request(endpoint, payload):
 
     url = f"{os.getenv('API_URL')}/{endpoint}"
 
-    # Check if we're sending an image
+    # Verifique se estamos enviando uma imagem
     if 'media' in payload:
         image_path, mime_type = payload.pop('media').split(';')
 
@@ -59,7 +57,7 @@ def send_whapi_request(endpoint, payload):
 
 
 def handle_user_response(sender_id, message_text):
-    """Handle the user's response based on the current state."""
+    """Lida com a resposta do usuário com base no estado atual."""
 
     if sender_id not in user_states:
         user_states[sender_id] = {'state': 'ask_name'}
@@ -89,19 +87,19 @@ def handle_user_response(sender_id, message_text):
     return 'Desculpe, não entendi sua resposta.'
 
 
-# The Webhook link to your server is set in the dashboard.
-# For this script it is important that the link is in the format: {link to server}/hook.
+# O link do Webhook para o seu servidor é configurado no painel de controle da API.
+# Para este script, é importante que o link esteja no formato: {link para o servidor}/webhook.
 @app.route('/webhook', methods=['POST'])
 def handle_new_messages():
     try:
         messages = request.json.get('messages', [])
 
         for message in messages:
-            # Ignore messages from the bot itself
+            # Ignore mensagens do próprio bot
             if message.get('from_me'):
                 continue
 
-            # Ignore messages from groups and broadcast lists
+            # Ignore mensagens de grupos e listas de transmissão
             chat_id = message.get('chat_id')
             if '@g.us' in chat_id or '@broadcast' in chat_id:
                 continue
@@ -111,22 +109,22 @@ def handle_new_messages():
             payload = {'to': sender_id}
 
             if command_type == 'text':
-                # Get the command text from the incoming message
+                # Obter o texto do comando da mensagem recebida
                 command_text = message.get('text', {}).get(
                     'body', '').strip().lower()
 
-                # Handle the user's response based on the current state
+                # Lidar com a resposta do usuário com base no estado atual
                 response_text = handle_user_response(sender_id, command_text)
                 payload['body'] = response_text
                 endpoint = 'messages/text'
 
-            elif command_type == 'image':
-                payload['caption'] = IMAGE_CAPTION
-                payload['media'] = IMAGE_PATH + \
-                    ';image/' + IMAGE_PATH.split('.')[-1]
-                endpoint = 'messages/image'
+            # Lidar com outros tipos de mensagens
+            elif command_type in ['image', 'video', 'gif', 'audio', 'voice', 'document', 'location', 'contact', 'call']:
+                response_text = 'Desculpe, o atendimento automático não acessa arquivos enviados. \nPor favor, envie uma mensagem de texto.'
+                payload['body'] = response_text
+                endpoint = 'messages/text'
 
-            # Send the response
+            # Enviar a resposta
             send_whapi_request(endpoint, payload)
 
         return 'Ok', 200
