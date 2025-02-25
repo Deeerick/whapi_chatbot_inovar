@@ -4,7 +4,6 @@ import requests
 from pytz import timezone
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
-from requests_toolbelt.multipart.encoder import MultipartEncoder
 from datetime import datetime, timedelta
 
 load_dotenv()
@@ -16,18 +15,14 @@ RESPONSES = {'default': 'Bem vindo ao atendimento da Inovar! \n\nPara seguirmos 
 
 # Lista de condomínios válidos
 VALID_CONDOMINIOS = ['Vitalis', 'Spazio Castellon', 'Parque da Mata II',
-                     'Atlanta', 'Portal dos Cristais', 'Portal das Safiras'
-                     'Inspirazzione', 'Roma Residencial Clube', 'São Gabriel'
-                     ]
+                     'Atlanta', 'Portal dos Cristais', 'Portal das Safiras',
+                     'Inspirazzione', 'Roma Residencial Clube', 'São Gabriel']
 
 # Dicionário para armazenar o estado da conversa com cada usuário
 user_states = {}
 
 # Dicionário para armazenar a última interação de cada usuário
 last_interaction = {}
-
-IMAGE_PATH = './files/helicopter.jfif'
-IMAGE_CAPTION = 'Caption.'
 
 
 def send_whapi_request(endpoint, payload):
@@ -39,25 +34,60 @@ def send_whapi_request(endpoint, payload):
 
     url = f"{os.getenv('API_URL')}/{endpoint}"
 
-    # Verifique se estamos enviando uma imagem
-    if 'media' in payload:
-        image_path, mime_type = payload.pop('media').split(';')
-
-        with open(image_path, 'rb') as image_file:
-            m = MultipartEncoder(
-                fields={
-                    **payload,
-                    'media': (image_path, image_file, mime_type)
-                }
-            )
-
-            headers['Content-Type'] = m.content_type
-            response = requests.post(url, data=m, headers=headers)
-    else:
-        headers['Content-Type'] = 'application/json'
-        response = requests.post(url, json=payload, headers=headers)
+    response = requests.post(url, json=payload, headers=headers)
 
     return response.json()
+
+
+def handle_condominio(condominio, sender_id):
+    """Função para lidar com cada condomínio."""
+    # Aqui você pode adicionar a lógica específica para cada condomínio
+
+    if condominio == 'Vitalis':
+
+        OPTS = {
+            '1': 'Reforma/Obras',
+            '2': 'Mudança',
+            '3': 'Entrada/liberação de visitantes',
+            '4': 'Entrada/liberação de corretor de imóveis',
+            '5': 'Retirada/movimentação de móveis',
+            '6': 'Emissão de boleto',
+            '7': 'Registro de ocorrências (barulho, vazamento, etc)',
+            '8': 'Reserva de área comum',
+            '9': 'Empréstimo de vagas',
+            '10': 'Documentos úteis',
+            '11': 'Outros assuntos'
+        }
+
+        return 'Por favor, selecione uma opção:\n\n1 - Reforma/Obras\n2 - Mudança\n3 - Entrada/liberação de visitantes\n4 - Entrada/liberação de corretor de imóveis\n5 - Retirada/movimentação de móveis\n6 - Emissão de boleto\n7 - Registro de ocorrências (barulho, vazamento, etc)\n8 - Reserva de área comum\n9 - Empréstimo de vagas\n10 - Documentos úteis\n11 - Outros assuntos'
+    
+    
+
+    elif condominio == 'Spazio Castellon':
+        pass
+
+    elif condominio == 'Parque da Mata II':
+        pass
+
+    elif condominio == 'Atlanta':
+        pass
+
+    elif condominio == 'Portal dos Cristais':
+        pass
+
+    elif condominio == 'Portal das Safiras':
+        pass
+
+    elif condominio == 'Inspirazzione':
+        pass
+
+    elif condominio == 'Roma Residencial Clube':
+        pass
+
+    elif condominio == 'São Gabriel':
+        pass
+
+    return True
 
 
 def handle_user_response(sender_id, message_text):
@@ -79,32 +109,14 @@ def handle_user_response(sender_id, message_text):
             user_states[sender_id]['condominio'] = message_text
             user_states[sender_id]['state'] = 'triage_complete'
 
-            # Chame o arquivo Python correspondente ao condomínio
-            condominio_script = f"{message_text.replace(' ', '_').lower()}.py"
-
-            # Aqui você pode importar e chamar a função principal do script do condomínio
-            # Por exemplo: import condominio_a; condominio_a.main()
-            return f"Condomínio válido. Chamando o script {condominio_script}..."
+            # Chame a função correspondente ao condomínio
+            return handle_condominio(message_text, sender_id)
         else:
             return 'Condomínio inválido. Por favor, informe um condomínio válido:'
 
     return 'Desculpe, não entendi sua resposta.'
 
 
-def save_message(chat_id, message_text):
-    """Salva a mensagem em um arquivo de texto."""
-    
-    brasilia_tz = timezone('America/Sao_Paulo')
-    now = datetime.now(brasilia_tz)
-    timestamp = now.strftime('%Y-%m-%d_%H-%M-%S')
-    filename = f"{chat_id}_{timestamp}.txt"
-
-    with open(filename, 'a') as file:
-        file.write(f"{now.strftime('%Y-%m-%d %H:%M:%S')} - {message_text}\n")
-
-
-# O link do Webhook para o seu servidor é configurado no painel de controle da API.
-# Para este script, é importante que o link esteja no formato: {link para o servidor}/webhook.
 @app.route('/webhook', methods=['POST'])
 def handle_new_messages():
     try:
@@ -140,9 +152,6 @@ def handle_new_messages():
                 # Obter o texto do comando da mensagem recebida
                 command_text = message.get('text', {}).get(
                     'body', '').strip().lower()
-
-                # Salvar a mensagem recebida
-                save_message(chat_id, command_text)
 
                 # Lidar com a resposta do usuário com base no estado atual
                 response_text = handle_user_response(sender_id, command_text)
