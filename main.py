@@ -5,7 +5,7 @@ from pytz import timezone
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 from requests_toolbelt.multipart.encoder import MultipartEncoder
-from datetime import datetime
+from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -22,6 +22,9 @@ VALID_CONDOMINIOS = ['Vitalis', 'Spazio Castellon', 'Parque da Mata II',
 
 # Dicionário para armazenar o estado da conversa com cada usuário
 user_states = {}
+
+# Dicionário para armazenar a última interação de cada usuário
+last_interaction = {}
 
 IMAGE_PATH = './files/helicopter.jfif'
 IMAGE_CAPTION = 'Caption.'
@@ -88,6 +91,18 @@ def handle_user_response(sender_id, message_text):
     return 'Desculpe, não entendi sua resposta.'
 
 
+def save_message(chat_id, message_text):
+    """Salva a mensagem em um arquivo de texto."""
+    
+    brasilia_tz = timezone('America/Sao_Paulo')
+    now = datetime.now(brasilia_tz)
+    timestamp = now.strftime('%Y-%m-%d_%H-%M-%S')
+    filename = f"{chat_id}_{timestamp}.txt"
+
+    with open(filename, 'a') as file:
+        file.write(f"{now.strftime('%Y-%m-%d %H:%M:%S')} - {message_text}\n")
+
+
 # O link do Webhook para o seu servidor é configurado no painel de controle da API.
 # Para este script, é importante que o link esteja no formato: {link para o servidor}/webhook.
 @app.route('/webhook', methods=['POST'])
@@ -111,6 +126,12 @@ def handle_new_messages():
             if '@g.us' in chat_id or '@broadcast' in chat_id:
                 continue
 
+            # Verificar a última interação do usuário
+            if chat_id in last_interaction:
+                last_interaction_time = last_interaction[chat_id]
+                if now - last_interaction_time < timedelta(hours=24):
+                    continue
+
             command_type = message.get('type', {}).strip().lower()
             sender_id = chat_id
             payload = {'to': sender_id}
@@ -120,16 +141,25 @@ def handle_new_messages():
                 command_text = message.get('text', {}).get(
                     'body', '').strip().lower()
 
+                # Salvar a mensagem recebida
+                save_message(chat_id, command_text)
+
                 # Lidar com a resposta do usuário com base no estado atual
                 response_text = handle_user_response(sender_id, command_text)
                 payload['body'] = response_text
                 endpoint = 'messages/text'
+
+                # Atualizar a última interação do usuário
+                last_interaction[chat_id] = now
 
             # Lidar com outros tipos de mensagens
             elif command_type in ['image', 'video', 'gif', 'audio', 'voice', 'document', 'location', 'contact', 'call']:
                 response_text = 'Desculpe, o atendimento automático não acessa arquivos enviados. \nPor favor, envie uma mensagem de texto.'
                 payload['body'] = response_text
                 endpoint = 'messages/text'
+
+                # Atualizar a última interação do usuário
+                last_interaction[chat_id] = now
 
             # Enviar a resposta
             send_whapi_request(endpoint, payload)
